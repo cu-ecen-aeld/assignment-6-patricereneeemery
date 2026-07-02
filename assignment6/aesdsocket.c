@@ -16,22 +16,21 @@
 
 #define PORT "9000"
 #define DATAFILE "/var/tmp/aesdsocketdata"
-pthread_t timestamp_thread;
 
+pthread_t timestamp_thread;
 pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct thread_info {
     pthread_t thread_id;
     int client_fd;
     int thread_complete;
-    struct sockaddr_storage client_addr;   
+    struct sockaddr_storage client_addr;
     struct thread_info *next;
 };
 
 struct thread_info *thread_list = NULL;
 
 static int server_fd = -1;
-//static int client_fd = -1; //commented out because each thread now has its own client_fd
 static volatile sig_atomic_t exit_requested = 0;
 
 /*************** SIGNAL HANDLING ***************/
@@ -39,16 +38,15 @@ void signal_handler(int signo)
 {
     if (signo == SIGINT || signo == SIGTERM) {
         exit_requested = 1;
-        shutdown(server_fd, SHUT_RDWR);   // Force accept() to unblock
+        shutdown(server_fd, SHUT_RDWR);   // unblock accept()
     }
 }
-
 
 void setup_signals(void)
 {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = signal_handler; 
+    sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
 
     if (sigaction(SIGINT, &sa, NULL) == -1) {
@@ -60,7 +58,6 @@ void setup_signals(void)
         exit(EXIT_FAILURE);
     }
 }
-
 
 /*************** DAEMON MODE ***************/
 void daemonize(void)
@@ -158,7 +155,6 @@ void handle_client(int client_fd, struct sockaddr *addr)
 
     while (!exit_requested) {
 
-        // Expand buffer if needed
         if (used == buf_size) {
             buf_size *= 2;
             char *tmp = realloc(buf, buf_size);
@@ -179,61 +175,63 @@ void handle_client(int client_fd, struct sockaddr *addr)
 
         used += n;
 
-        char *newline = memchr(buf, '\n', used);
-        if (newline) {
-            size_t packet_len = (newline - buf) + 1;
+        /*************** THREAD-SAFE FILE WRITE ***************/
+        pthread_mutex_lock(&file_mutex);
 
-            /*************** THREAD-SAFE FILE WRITE ***************/
-            pthread_mutex_lock(&file_mutex);
+        int data_fd = open(DATAFILE, O_CREAT | O_WRONLY | O_APPEND, 0644);
+        if (data_fd == -1) {
+            syslog(LOG_ERR, "open data file failed");
+            pthread_mutex_unlock(&file_mutex);
+            free(buf);
+            return;
+        }
 
-            int data_fd = open(DATAFILE, O_CREAT | O_WRONLY | O_APPEND, 0644);
-            if (data_fd == -1) {
-                syslog(LOG_ERR, "open data file failed");
-                pthread_mutex_unlock(&file_mutex);
-                free(buf);
-                return;
-            }
-
-            write(data_fd, buf, packet_len);
-            close(data_fd);
-
-            /*************** THREAD-SAFE FILE READ ***************/
-            data_fd = open(DATAFILE, O_RDONLY);
-            if (data_fd == -1) {
-                syslog(LOG_ERR, "open for read failed");
-                pthread_mutex_unlock(&file_mutex);
-                free(buf);
-                return;
-            }
-
-            char filebuf[1024];
-            ssize_t r;
-            while ((r = read(data_fd, filebuf, sizeof(filebuf))) > 0) {
-                send(client_fd, filebuf, r, 0);
-            }
-
+        // write all received data, no newline dependency
+        if (write(data_fd, buf, used) == -1) {
+            syslog(LOG_ERR, "write to data file failed");
             close(data_fd);
             pthread_mutex_unlock(&file_mutex);
-            /******************************************************/
-
-            break;
+            free(buf);
+            return;
         }
+        close(data_fd);
+
+        /*************** THREAD-SAFE FILE READ ***************/
+        data_fd = open(DATAFILE, O_RDONLY);
+        if (data_fd == -1) {
+            syslog(LOG_ERR, "open for read failed");
+            pthread_mutex_unlock(&file_mutex);
+            free(buf);
+            return;
+        }
+
+        char filebuf[1024];
+        ssize_t r;
+        while ((r = read(data_fd, filebuf, sizeof(filebuf))) > 0) {
+            if (send(client_fd, filebuf, r, 0) == -1) {
+                syslog(LOG_ERR, "send failed");
+                break;
+            }
+        }
+
+        close(data_fd);
+        pthread_mutex_unlock(&file_mutex);
+        /******************************************************/
+
+        break;
     }
 
     free(buf);
-
     syslog(LOG_INFO, "Closed connection from %s", client_ip);
 }
 
-
-    
-
-
+/*************** THREAD LIST MANAGEMENT ***************/
 void add_thread(struct thread_info *tinfo)
 {
     tinfo->next = thread_list;
     thread_list = tinfo;
 }
+
 void cleanup_threads()
 {
     struct thread_info *curr = thread_list;
@@ -259,20 +257,23 @@ void cleanup_threads()
         }
     }
 }
+
+/*************** TIMESTAMP THREAD ***************/
 void *timestamp_thread_func(void *arg)
 {
-    while (1) {
+    while (!exit_requested) {
         sleep(10);
 
         pthread_mutex_lock(&file_mutex);
 
-        FILE *fp = fopen("/var/tmp/aesdsocketdata", "a");
+        FILE *fp = fopen(DATAFILE, "a");
         if (fp) {
             time_t now = time(NULL);
             struct tm *tm_info = localtime(&now);
 
             char time_str[128];
-            strftime(time_str, sizeof(time_str), "timestamp: %Y-%m-%d %H:%M:%S\n", tm_info);
+            strftime(time_str, sizeof(time_str),
+                     "timestamp: %Y-%m-%d %H:%M:%S\n", tm_info);
 
             fputs(time_str, fp);
             fclose(fp);
@@ -284,20 +285,17 @@ void *timestamp_thread_func(void *arg)
     return NULL;
 }
 
+/*************** CLIENT THREAD ***************/
 void *client_thread_func(void *arg)
 {
     struct thread_info *tinfo = (struct thread_info *)arg;
 
-    // Call your existing handler with both fd and client address
     handle_client(tinfo->client_fd, (struct sockaddr *)&tinfo->client_addr);
 
-    // Mark thread complete so cleanup_threads() can join + free it
     tinfo->thread_complete = 1;
 
     return NULL;
 }
-
-
 
 /*************** MAIN ***************/
 int main(int argc, char *argv[])
@@ -311,23 +309,19 @@ int main(int argc, char *argv[])
     openlog("aesdsocket", LOG_PID, LOG_USER);
     setup_signals();
 
-    // Initialize mutex
+    // mutex already statically initialized, this is optional but harmless
     pthread_mutex_init(&file_mutex, NULL);
 
-    // Create server socket
     server_fd = create_server_socket();
     if (server_fd == -1) {
         closelog();
         return EXIT_FAILURE;
     }
 
-    // Daemonize if requested
     if (daemon_mode) daemonize();
 
-    // Start timestamp thread
     pthread_create(&timestamp_thread, NULL, timestamp_thread_func, NULL);
 
-    // Main accept loop
     while (!exit_requested) {
         struct sockaddr_storage client_addr;
         socklen_t addr_len = sizeof(client_addr);
@@ -339,7 +333,6 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        // Allocate thread info node
         struct thread_info *tinfo = malloc(sizeof(struct thread_info));
         if (!tinfo) {
             syslog(LOG_ERR, "malloc failed");
@@ -347,30 +340,24 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        // Fill thread info
         tinfo->client_fd = client_fd;
         tinfo->thread_complete = 0;
         memcpy(&tinfo->client_addr, &client_addr, sizeof(client_addr));
         tinfo->next = NULL;
 
-        // Create client thread
         pthread_create(&tinfo->thread_id, NULL, client_thread_func, tinfo);
 
-        // Add to thread list
         add_thread(tinfo);
-
-        // Clean up any finished threads
         cleanup_threads();
     }
 
-    // Shutdown: stop accepting new clients
+    // stop accepting new clients (already done in signal handler, but harmless)
     shutdown(server_fd, SHUT_RDWR);
 
-    // Stop timestamp thread
-    pthread_cancel(timestamp_thread);
+    // let timestamp thread exit via exit_requested, then join it
     pthread_join(timestamp_thread, NULL);
 
-    // Join all remaining client threads
+    // join any remaining client threads
     struct thread_info *curr = thread_list;
     while (curr) {
         pthread_join(curr->thread_id, NULL);
@@ -381,7 +368,6 @@ int main(int argc, char *argv[])
         free(tmp);
     }
 
-    // Cleanup
     pthread_mutex_destroy(&file_mutex);
 
     if (server_fd != -1) close(server_fd);
