@@ -17,8 +17,8 @@ SRCREV = "f8327e25cbbdec717886db70aca36c244cff3ebb"
 # https://docs.yoctoproject.org/ref-manual/variables.html?highlight=workdir#term-WORKDIR
 # We reference the "server" directory here to build from the "server" directory
 # in your assignments repo
-S = "${WORKDIR}/git/assignment6"
-#S = "${WORKDIR}/git/server"
+#S = "${WORKDIR}/git/assignment6"
+S = "${WORKDIR}/git/server"
 
 
 # TODO: Add the aesdsocket application and any other files you need to install
