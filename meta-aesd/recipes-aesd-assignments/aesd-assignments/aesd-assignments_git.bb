@@ -1,54 +1,46 @@
-# See https://git.yoctoproject.org/poky/tree/meta/files/common-licenses
+SUMMARY = "AESD assignment 6 socket server"
+DESCRIPTION = "AESD assignment 6 socket server"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-# TODO: Set this  with the path to your assignments rep.  Use ssh protocol and see lecture notes
-# about how to setup ssh-agent for passwordless access
-# SRC_URI = "git://git@github.com/cu-ecen-aeld/<your assignments repo>;protocol=ssh;branch=master"
-#SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery;protocol=ssh;branch=main"
-SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery;protocol=ssh;branch=assignment6"
-
+# Git source for your assignment 6 branch
+#SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery.git;protocol=ssh;branch=main"
+#SRC_URI += "file://aesdsocket-start.sh"
+#SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery.git;protocol=ssh;branch=assignment6 \
+#           file://aesdsocket-start.sh"
+SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery.git;protocol=ssh;branch=assignment6"
 SRC_URI += "file://aesdsocket-start.sh"
 
+# Versioning
 PV = "1.0+git${SRCPV}"
-# TODO: set to reference a specific commit hash in your assignment repo
-SRCREV = "f8327e25cbbdec717886db70aca36c244cff3ebb"
-# This sets your staging directory based on WORKDIR, where WORKDIR is defined at 
-# https://docs.yoctoproject.org/ref-manual/variables.html?highlight=workdir#term-WORKDIR
-# We reference the "server" directory here to build from the "server" directory
-# in your assignments repo
-#S = "${WORKDIR}/git/assignment6"
-S = "${WORKDIR}/git/server"
+#SRCREV = "4ef7ea00e56ba45f10d30e56dfeae3c21828a778"
+#SRCREV = "bd0204e5ea420fd323301a329e964389edce93b"
+#SRCREV = "7bd0204e5ea420fd323301a329e964389edce93b"
+#SRCREV = "708b9eac2d4344cff0fe705885f758ffdc1a1794"
+SRCREV = "386752bfe52f1ce911414d98c6a01a34fff2a2c0"
 
+# Build directory inside the repo
+S = "${WORKDIR}/git/assignment6"
 
-# TODO: Add the aesdsocket application and any other files you need to install
-# See https://git.yoctoproject.org/poky/plain/meta/conf/bitbake.conf?h=kirkstone
-#FILES:${PN} += "${bindir}/aesdsocket"
-# TODO: customize these as necessary for any libraries you need for your application
-# (and remove comment)
-#TARGET_LDFLAGS += "-pthread -lrt"
-
-do_configure () {
-	:
+# No configure step needed
+do_configure() {
+    :
 }
 
-do_compile () {
-	oe_runmake
+# Build using your Makefile
+do_compile() {
+    oe_runmake
 }
 
-do_install () {
-	# TODO: Install your binaries/scripts here.
-	# Be sure to install the target directory with install -d first
-	# Yocto variables ${D} and ${S} are useful here, which you can read about at 
-	# https://docs.yoctoproject.org/ref-manual/variables.html?highlight=workdir#term-D
-	# and
-	# https://docs.yoctoproject.org/ref-manual/variables.html?highlight=workdir#term-S
-	# See example at https://github.com/cu-ecen-aeld/ecen5013-yocto/blob/ecen5013-hello-world/meta-ecen5013/recipes-ecen5013/ecen5013-hello-world/ecen5013-hello-world_git.bb
+# Install the binary and init script
+do_install() {
+    install -d ${D}${bindir}
+    install -m 0755 ${S}/aesdsocket ${D}${bindir}/aesdsocket
 
-        install -d ${D}${bindir}
-#        install -m 0755 aesdsocket ${D}${bindir}/aesdsocket
-	install -m 0755 ${S}/aesdsocket ${D}${bindir}/aesdsocket
-
-        install -d ${D}/etc/init.d
-        install -m 0755 ${WORKDIR}/aesdsocket-start.sh ${D}/etc/init.d/aesdsocket-start
+    install -d ${D}${sysconfdir}/init.d
+    install -m 0755 ${WORKDIR}/aesdsocket-start.sh ${D}${sysconfdir}/init.d/aesdsocket-start
 }
+
+# Package only the installed files
+FILES:${PN} = "${bindir}/aesdsocket \
+               ${sysconfdir}/init.d/aesdsocket-start"
