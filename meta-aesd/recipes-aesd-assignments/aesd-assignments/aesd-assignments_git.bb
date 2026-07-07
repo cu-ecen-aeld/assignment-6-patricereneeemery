@@ -9,6 +9,8 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 #SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery.git;protocol=ssh;branch=assignment6 \
 #           file://aesdsocket-start.sh"
 SRC_URI = "git://git@github.com/cu-ecen-aeld/assignments-3-and-later-patricereneeemery.git;protocol=ssh;branch=assignment6"
+#SRC_URI = "git://github.com/cu-ecen-aeld/assignment-6-patricereneeemery.git;branch=assignment6"
+#SRC_URI = "git://github.com/cu-ecen-aeld/assignment-6-patricereneeemery.git;protocol=https;branch=assignment6"
 SRC_URI += "file://aesdsocket-start.sh"
 
 # Versioning
@@ -17,7 +19,9 @@ PV = "1.0+git${SRCPV}"
 #SRCREV = "bd0204e5ea420fd323301a329e964389edce93b"
 #SRCREV = "7bd0204e5ea420fd323301a329e964389edce93b"
 #SRCREV = "708b9eac2d4344cff0fe705885f758ffdc1a1794"
-SRCREV = "386752bfe52f1ce911414d98c6a01a34fff2a2c0"
+#SRCREV = "386752bfe52f1ce911414d98c6a01a34fff2a2c0"
+#SRCREV = "1d6a76e0756cdae315772f149c6d0641b267c8b5"
+SRCREV = "4ef7ea00e56ba45f10d30e56dfeae3c21828a778"
 
 # Build directory inside the repo
 S = "${WORKDIR}/git/assignment6"
