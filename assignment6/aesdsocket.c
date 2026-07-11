@@ -258,9 +258,10 @@ void cleanup_threads()
     }
 }
 
-/*************** TIMESTAMP THREAD ***************/
+//Tomestamp Thread
 void *timestamp_thread_func(void *arg)
 {
+    //RFC Comoliant timestamp 
     while (!exit_requested) {
         sleep(10);
 
@@ -271,11 +272,14 @@ void *timestamp_thread_func(void *arg)
             time_t now = time(NULL);
             struct tm *tm_info = localtime(&now);
 
-            char time_str[128];
-            strftime(time_str, sizeof(time_str),
-                     "timestamp: %Y-%m-%d %H:%M:%S\n", tm_info);
+            char time_buf[128];
+            // RFC 2822 style
+            strftime(time_buf, sizeof(time_buf),
+                     "%a, %d %b %Y %H:%M:%S %z", tm_info);
 
-            fputs(time_str, fp);
+            // Exact required format: "timestamp:time\n"
+            fprintf(fp, "timestamp:%s\n", time_buf);
+
             fclose(fp);
         }
 
@@ -284,6 +288,8 @@ void *timestamp_thread_func(void *arg)
 
     return NULL;
 }
+
+
 
 /*************** CLIENT THREAD ***************/
 void *client_thread_func(void *arg)
