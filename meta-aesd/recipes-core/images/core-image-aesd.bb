@@ -2,6 +2,7 @@ inherit core-image
 #CORE_IMAGE_EXTRA_INSTALL += "aesd-assignments"
 CORE_IMAGE_EXTRA_INSTALL += "openssh"
 IMAGE_INSTALL:append = " aesd-assignments"
+IMAGE_INSTALL += "scull misc-modules"
 
 inherit extrausers
 # See https://docs.yoctoproject.org/singleindex.html#extrausers-bbclass

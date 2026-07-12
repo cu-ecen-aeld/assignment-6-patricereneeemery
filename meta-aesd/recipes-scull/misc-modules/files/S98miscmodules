@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$1" in
+    start)
+        modprobe misc-modules
+        ;;
+    stop)
+        modprobe -r misc-modules
+        ;;
+esac
+
