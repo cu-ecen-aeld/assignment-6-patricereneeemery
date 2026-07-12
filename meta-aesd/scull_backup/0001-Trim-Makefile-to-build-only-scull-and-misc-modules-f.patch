@@ -1,0 +1,23 @@
+From 429efb29300bc0a475db4f0a98f94cf42daebf90 Mon Sep 17 00:00:00 2001
+From: patricereneeemery <patriceemery@yahoo.com>
+Date: Wed, 8 Jul 2026 22:57:19 -0700
+Subject: [PATCH] Trim Makefile to build only scull and misc-modules for Yocto
+
+---
+ Makefile | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 7b08c49..c4f2e2e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,8 +1,5 @@
+ 
+-SUBDIRS =  misc-progs misc-modules \
+-           skull scull scullc scullp lddbus sculld scullv shortprint simple tty \
+-	   pci usb\
+-	   sbull snull short
++SUBDIRS =  misc-modules scull
+ 
+ all: subdirs
+ 
